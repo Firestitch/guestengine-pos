@@ -11,7 +11,7 @@
 			$this->_file = $file;
 		}
              
-		public function create($file) {
+		public static function create($file) {
 			return new LOG_UTIL($file);
 		}
 

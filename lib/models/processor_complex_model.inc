@@ -1,5 +1,5 @@
 <?
-	abstract class CMODEL_PROCESSOR {
+	abstract class CMODEL_PROCESSOR extends CMODEL {
 
 		protected $_application 	= null;
 		protected $_host 			= null;

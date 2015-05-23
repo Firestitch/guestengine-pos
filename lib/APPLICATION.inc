@@ -21,6 +21,8 @@
 			if(!self::$instance)
 				self::$instance = new APPLICATION();
 
+			SERVER_UTIL::set_max_execution_minutes(30);
+
 			return self::$instance;
 		}
 

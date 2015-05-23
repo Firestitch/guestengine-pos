@@ -258,7 +258,10 @@
 	 * @return mixed
          * @todo review return type
 	 */
-	 
+	function value($var,$index,$default=null) {
+		return get_value($var,$index,$default);	
+	}
+
 	function get_value($var,$index,$default=null) {
 	
 		if($var===null)
