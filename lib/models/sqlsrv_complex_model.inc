@@ -5,9 +5,12 @@
 
 		public function connect() {			
 
+			if(!extension_loaded("sqlsrv"))
+				throw new Exception("The sqlsrv extension does not exist");				
+
 			$serverName = "(local)";
 			$connectionInfo = array( "Database"=>"Squirrel", "UID"=>"sa", "PWD"=>"Squirrel2007");
-			$this->_conn = sqlsrv_connect( $serverName, $connectionInfo);
+			$this->_conn = sqlsrv_connect($serverName, $connectionInfo);
 
 			if( !$this->_conn ) 
 				throw new Exception("Connection could not be established to ");

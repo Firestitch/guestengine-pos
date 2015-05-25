@@ -9,25 +9,27 @@
 		protected $_path 			= null;
 		protected $_data_dir 		= null;
 		protected $_purge 			= null;
+		protected $_purge_days		= 0;
 		protected $_archive			= null;
 		protected $_zip_util		= null;
 		protected $_processed_files	= array();
 		
-		public function __construct($host,$user,$key,$password,$data_dir,$path,$purge,$archive) {
+		public function __construct($host,$user,$key,$password,$data_dir,$path,$options) {
 
 			$this->_application = APPLICATION::instance();
 			$this->_host 		= $host;
 			$this->_user 		= $user;
 			$this->_password	= $password;
 			$this->_path 		= $path;
-			$this->_purge 		= $purge;
-			$this->_archive		= $archive;
+			$this->_purge 		= value($options,"purge");
+			$this->_archive		= value($options,"archive");
+			$this->_purge_days	= (int)value($options,"purge_days");
 			$this->_data_dir 	= $data_dir;
 
 			FILE_UTIL::mkdir($this->application()->get_log_dir());
 			FILE_UTIL::mkdir($this->application()->get_archive_dir());
 
-			$this->_db = new CMODEL_DB($this->_application->get_data_dir(),$purge);
+			$this->_db = new CMODEL_DB($this->_application->get_data_dir());
 		}
 
 		public function log($message) 	{ $this->_application->log($message); }
@@ -42,29 +44,9 @@
 		public function host() 			{ return $this->_host; }
 		public function application() 	{ return $this->_application; }	
 
-		public function add_file($file,$path,$store) {	
-
-			$fp = @fopen($file,"r+");
-
-			if($fp && @flock($fp,LOCK_EX)) {
-
-				if(!$this->db()->exists($store,basename($file))) {
-					$this->_zip_util->add_file($file,$path);
-					$add_file = str_replace($this->data_dir(),"",$file);
-					$this->log("Added File: ".$add_file." @ ".$store);
-				}
-				
-				$this->_processed_files[] = array(	"file"=>$file,
-													"filename"=>basename($file),
-													"store"=>$store);
-			}			
-			
-			@fclose($fp);
-		}
-
 		public function file($store,$filename) { return $tbis->data_dir()."store/".$filename; }
 
-		public static function create($pos,$host,$user,$key,$password,$data_dir,$path,$purge,$archive) {
+		public static function create($pos,$host,$user,$key,$password,$data_dir,$path,$options) {
 
 			if(!is_dir($data_dir))
 				throw new Exception("The data directory does not exist");
@@ -73,13 +55,13 @@
 				throw new Exception("Invalid POS type (Supports maitred and pixelpoint)");		
 
 			if($pos=="maitred")
-				return new CMODEL_MAITRED_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$purge,$archive);
+				return new CMODEL_MAITRED_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$options);
 
 			if($pos=="pixelpoint")
-				return new CMODEL_PIXELPOINT_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$purge,$archive);
+				return new CMODEL_PIXELPOINT_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$options);
 			
 			if($pos=="guestengine")
-				return new CMODEL_GUESTENGINE_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$purge,$archive);			
+				return new CMODEL_GUESTENGINE_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$options);			
 
 			throw new Exception("Invalid POS type");			
 		}
@@ -93,7 +75,27 @@
 
 			$this->log("Looking for new files...");
 
-			$this->build();
+			foreach($this->get_files() as $item) {
+
+				$file 		= value($item,"file");
+				$filename 	= value($item,"filename");
+				$path 		= value($item,"path");
+				$store 		= value($item,"store");
+
+				$fp = @fopen($file,"r+");
+
+				if($fp && @flock($fp,LOCK_EX)) {
+
+					if(!$this->db()->exists($store,$filename)) {
+						$this->_zip_util->add_file($file,$path);
+						$this->log("Added File: ".str_replace($this->data_dir(),"",$file)." @ ".$store);
+					}
+					
+					$this->_processed_files[] = $item;
+				}			
+				
+				@fclose($fp);				
+			}
 
 			$this->log("Saving zip file...");
 
@@ -133,95 +135,38 @@
 			
 			$this->log("Successfully completed sync");
 			
-			if($this->purge()) {
+			if(!is_null($this->purge())) {
 
-				$this->log("Purging xml files...");
+				
+				$this->log("Purging files older then ".$this->purge()." days...");
+				if($this->purge()) {
 
-				foreach($this->_processed_files as $processed_file)
-					FILE_UTIL::delete(get_value($processed_file,"file"));
-			} 
+					$now = CMODEL_TIME::create(time())->subtract_day($this->purge())->time();
+
+					foreach($this->get_files() as $item) {
+						
+						$time = filemtime(value($item,"file"));
+
+						if($time<$now)
+							FILE_UTIL::delete(value($item,"file"));
+					}
+				
+				} else {
+
+					$this->log("Purging processed files...");
+
+					foreach($this->_processed_files as $processed_file) 
+						FILE_UTIL::delete(value($processed_file,"file"));
+				}
+			}
 			
 			$this->db()->clear();
-
+			
 			foreach($this->_processed_files as $processed_file)
 				$this->db()->log(get_value($processed_file,"store"),get_value($processed_file,"filename"));
 			
 			$this->db()->save();
 		}
 
-		abstract public function build();
-	}
-
-	class CMODEL_DB {
-
-		protected $_data_file 	= null;
-		protected $_db_dir 		= null;
-		protected $_purge 		= null;
-		protected $_files 		= array();
-		
-		public function __construct($data_dir) {
-
-			$this->_db_dir		= $data_dir."db/";
-			FILE_UTIL::mkdir($this->_db_dir);
-			
-			$this->load();
-		}
-
-		public function exists($store,$filename) 	{ return isset($this->_files[$store][$filename]); }	
-		public function db_file($store) 			{ return $this->_db_dir.$store."/db.txt"; } 
-		public function clear() 					{ $this->_files = array(); return $this; }
-		
-		public function load() {
-			
-			$stores = FILE_UTIL::get_directory_listing($this->_db_dir);
-
-			foreach($stores as $store) {
-				$db_file = $this->_db_dir.$store."/db.txt";
-
-				$handler = @fopen($db_file,"r");
-
-				if($handler) {
-					while(($line=fgets($handler))!==false) {
-
-						$line = explode("\t",trim($line));
-
-						$this->log($store,get_value($line,1),get_value($line,0));
-					}
-				}
-
-				@fclose($handler);
-			}
-
-			return $this;
-		}
-
-		public function save() {
-
-			$stores = FILE_UTIL::get_directory_listing($this->_db_dir);
-
-			foreach($stores as $store)
-				FILE_UTIL::delete($this->db_file($store));
-
-			$store_files = array();
-			foreach($this->_files as $store=>$files) {
-			
-				FILE_UTIL::mkdir($this->_db_dir.$store);
-				$handler = @fopen($this->db_file($store),"w");
-				
-				foreach($files as $filename=>$time) 
-					fwrite($handler,$time."\t".$filename."\n");
-
-				@fclose($handler);
-			}
-
-			return $this; 
-		}
-		
-		public function log($store,$filename,$time=null) {
-
-			$time = $time ? $time : time();
-			$this->_files[$store][$filename] = $time;
-
-			return $this;
-		}
+		abstract public function get_files();
 	}

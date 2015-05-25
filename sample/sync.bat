@@ -1,0 +1,1 @@
+D:\guestengine-pos\app\php\php.exe D:\guestengine-pos\app\sync.php --host=pos.guestengine.com --user=royaloak --password=xxxxxxxxxxxxxx --path=imports --data=d:/data/ --verbose --pos guestengine --purge=1

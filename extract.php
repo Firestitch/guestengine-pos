@@ -24,9 +24,12 @@
 		$sqlsrv = CMODEL_SQLSRV::create()->connect();
 		$time = time();
 
-		$time = strtotime("2015-03-28");
+		$stores = $sqlsrv->select("SELECT StoreNo,StoreName FROM EC_StoreExport");
+		
+		echo "Starting extraction\n";
+		echo "Found ".count($stores)." stores\n";
 
-		foreach($sqlsrv->select("SELECT StoreNo,StoreName FROM EC_StoreExport") as $store) {
+		foreach($stores as $store) {
 
 			$store_number = value($store,"StoreNo");
 
@@ -38,7 +41,16 @@
 
 			for($day=0;$day<7;$day++) {
 
-				$xml_file = $store_dir."invoice-".$time_cmodel->db_date().".xml";
+				if($day)
+					$time_cmodel->subtract_day(1);
+
+				$filename ="invoice-".$time_cmodel->db_date().".xml";
+				$xml_file = $store_dir.$filename;
+
+				if(is_file($xml_file)) {
+					echo "Invoice ".$filename." already exists";
+					continue;
+				}
 				
 				$xml_writer_util = 
 				XML_WRITER_UTIL::create()
@@ -50,6 +62,11 @@
 		  				WHERE StoreNo = ".$store_number." AND TransactionDate = '".$time_cmodel->db()."'";
 					
 				$invoices = $sqlsrv->select($sql);
+
+				if(!$invoices) {
+					echo "No Invoices: Store ".$store_number." on ".$time_cmodel->db_date()."\n";
+					continue;
+				}
 
 				foreach($invoices as $invoice) {
 
@@ -97,11 +114,14 @@
 					->close("Invoices")
 				->close("Location");
 
-				$xml_writer_util->save($xml_file);
-				$time_cmodel->subtract_day(1);
+				echo "Created Store #".$store_number." ".$filename."\n";
+
+				$xml_writer_util->save($xml_file);				
 			}		
 		}
 
+		echo "Extraction Completed\n";
+		
 	} catch(Exception $e) {
 		$application->handle_exception($e,"Extract POS Error: ");
 	}	

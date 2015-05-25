@@ -2,7 +2,7 @@
 	require(dirname(__FILE__)."/lib/__bootstrap.inc");
 	
 	$application = APPLICATION::instance();
-	$application->options("",array("host:","user:","pos:","data:","key:","password:","path:","archive","verbose","purge","validate"));
+	$application->options("",array("host:","user:","pos:","data:","key:","password:","path:","archive::","verbose::","validate::","purge::"));
 
 	try {
 		
@@ -13,7 +13,7 @@
 		$password	= $application->option("password");
 		$pos 		= $application->option("pos");
 		$verbose 	= !is_null($application->option("verbose"));
-		$purge 		= !is_null($application->option("purge"));
+		$purge 		= $application->option("purge")===null ? false : (int)$application->option("purge");
 		$validate 	= !is_null($application->option("validate"));
 		$archive 	= !is_null($application->option("archive"));
 		$key_file	= $application->option("key");
@@ -32,7 +32,7 @@
 			echo "SSH Key:        ".($key_file ? (is_file($key_file) ? "Exists" : "Supplied, but not found") : "Not Supplied")."\n";
 			echo "SSH Password:   ".($password ? "Exists" : "Not supplied")."\n";
 			echo "SSH Path:       ".($path ? $path : "Not supplied")."\n";
-			echo "Purge:          ".($purge ? "Yes" : "No")."\n";
+			echo "Purge:          ".(!is_null($purge) ? "Yes (".$purge." days)" : "No")."\n";
 			echo "Archive:        ".($archive ? "Yes" : "No")."\n\n";
 		}
 
@@ -69,7 +69,8 @@
 			die("\n");
 		}
 		
-		$processor_cmodel = CMODEL_PROCESSOR::create($pos,$host,$user,$key,$password,$data_dir,$path,$purge,$archive);
+		$options = array("purge"=>$purge,"archive"=>$archive);
+		$processor_cmodel = CMODEL_PROCESSOR::create($pos,$host,$user,$key,$password,$data_dir,$path,$options);
 		$processor_cmodel->process();
 
 	} catch(Exception $e) {
