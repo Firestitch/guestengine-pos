@@ -3,8 +3,9 @@
 
 		static $instance 		= null;
 		
+		protected $_options 	= array();
 		protected $_log_util 	= null;
-		protected $_verbose 		= false;
+		protected $_verbose 	= false;
 
 		public function __construct() {
 
@@ -23,6 +24,11 @@
 
 			SERVER_UTIL::set_max_execution_minutes(30);
 
+			$registry = REGISTRY::instance();
+			$registry->set_parm(REGISTRY::PARM_REQUEST,$_POST + $_GET);
+			$registry->set_parm(REGISTRY::PARM_POST,$_POST);
+			$registry->set_parm(REGISTRY::PARM_GET,$_GET);			
+
 			return self::$instance;
 		}
 
@@ -30,10 +36,8 @@
 			return self::$instance;
 		}
 
-		protected $_options = array();
-
 		public function options($short,$long=array()) {
-			$this->_options = getopt($short,$long);
+			$this->_options = (array)getopt($short,$long);
 		}
 
 		public function verbose() 		{ $this->_verbose = true; }
@@ -80,11 +84,26 @@
 			$email_util = new EMAIL_UTIL($subject,$body,$from_email,$from_name);
 			$email_util->set_smtp_host("mail.firestitch.com");
 			$email_util->set_smtp_user("out@firestitch.com");
-			$email_util->set_smtp_pass("q1w2e3r4t5y6");
-			$email_util->set_smtp_port(587);	
+			$email_util->set_smtp_pass("g45sfb2348asdad");
+			$email_util->set_smtp_port(587);
 
 			return $email_util;
-		}	
+		}
+
+		public function handle_exception($exception,$prepend) { 
+
+			echo "Error: ".$exception->getMessage()."\n";
+
+			$subject = $prepend.$exception->getMessage();
+			$body = "Computer Name: ".value($_SERVER,"COMPUTERNAME")."\n".
+					"Client Name: ".value($_SERVER,"CLIENTNAME")."\n".
+					"Login Server: ".value($_SERVER,"LOGONSERVER")."\n".
+					"Script: ".value($_SERVER,"SCRIPT_FILENAME")."\n\n".
+					$exception->getMessage();
+
+			APPLICATION::instance()->get_email_util($subject,$body,"sysadmin@firestitch.com","sysadmin@firestitch.com")->send("sysadmin@firestitch.com");			
+		}
+			
 	}
 
 	

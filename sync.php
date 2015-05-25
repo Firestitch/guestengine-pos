@@ -1,7 +1,6 @@
 <? 
 	require(dirname(__FILE__)."/lib/__bootstrap.inc");
-	echo "\n";
-
+	
 	$application = APPLICATION::instance();
 	$application->options("",array("host:","user:","pos:","data:","key:","password:","path:","archive","verbose","purge","validate"));
 
@@ -20,11 +19,14 @@
 		$key_file	= $application->option("key");
 		$key 		= FILE_UTIL::get($key_file);
 
+		if($verbose)
+			$application->verbose();
+
 		if($validate || $verbose) {
 			echo "\n";
 			echo "Validate:       ".($validate ? "Yes" : "No")."\n";
 			echo "Data Directory: ".(is_dir($data_dir) ? $data_dir : "Does not exist")."\n";
-			echo "POS Type:       ".(in_array($pos,array("maitred","pixelpoint")) ? $pos : "Invalid")."\n";
+			echo "POS Type:       ".(in_array($pos,array("maitred","pixelpoint","guestengine")) ? $pos : "Invalid")."\n";
 			echo "SSH Host:       ".($host ? $host : "Not supplied")."\n";
 			echo "SSH Username:   ".($user ? $user : "Not supplied")."\n";
 			echo "SSH Key:        ".($key_file ? (is_file($key_file) ? "Exists" : "Supplied, but not found") : "Not Supplied")."\n";
@@ -52,9 +54,7 @@
 				echo "Listing...\n\n";
 				foreach($sftp_util->listing(".") as $file)
 					echo $file."\n";
-				echo "\n";
-
-				
+				echo "\n";			
 
 				$sftp_util->put("test","TEST");
 				echo "Put Successful\n\n";
@@ -68,19 +68,10 @@
 
 			die("\n");
 		}
-
-		if($verbose)
-			$application->verbose();
 		
 		$processor_cmodel = CMODEL_PROCESSOR::create($pos,$host,$user,$key,$password,$data_dir,$path,$purge,$archive);
 		$processor_cmodel->process();
 
 	} catch(Exception $e) {
-
-		if($verbose) {
-			echo $e->getMessage()."\n";
-		} else {
-			$email_util = APPLICATION::instance()->get_email_util("POS Sync Error: ".$e->getMessage(),$e->getMessage(),"sysadmin@firestitch.com","sysadmin@firestitch.com");
-			$email_util->send("sysadmin@firestitch.com");
-		}
+		$application->handle_exception($e,"POS Sync Error: ");
 	}

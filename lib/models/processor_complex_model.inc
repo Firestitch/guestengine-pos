@@ -69,7 +69,7 @@
 			if(!is_dir($data_dir))
 				throw new Exception("The data directory does not exist");
 
-			if(!in_array($pos,array("maitred","pixelpoint")))
+			if(!in_array($pos,array("maitred","pixelpoint","guestengine")))
 				throw new Exception("Invalid POS type (Supports maitred and pixelpoint)");		
 
 			if($pos=="maitred")
@@ -77,6 +77,9 @@
 
 			if($pos=="pixelpoint")
 				return new CMODEL_PIXELPOINT_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$purge,$archive);
+			
+			if($pos=="guestengine")
+				return new CMODEL_GUESTENGINE_PROCESSOR($host,$user,$key,$password,$data_dir,$path,$purge,$archive);			
 
 			throw new Exception("Invalid POS type");			
 		}

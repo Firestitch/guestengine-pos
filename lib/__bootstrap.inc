@@ -4,6 +4,8 @@
 	include_once("APPLICATION.inc");
 	include_once("util/MISC_UTIL.inc");
 	include_once("constant.inc");
+	include_once("registry.inc");
+	include_once("uri.inc");
 	include_once("models/complex_model.inc");
 
 	function autoload($class_name) {
@@ -17,3 +19,5 @@
 
 	spl_autoload_register("autoload");
 	APPLICATION::init();
+
+	echo "\n";	
