@@ -92,9 +92,8 @@
 
 					foreach($items as $item) {
 
-						$item_plu = $plu ? value($item,"PLU") : value($item,"MenuID");
 						$xml_writer_util
-							->open("Item",array("plu"=>$item_plu))
+							->open("Item",array("plu"=>value($item,"PLU"),"id"=>value($item,"MenuID")))
 								->add("Description",value($item,"ItemName"))
 								->add("Quantity",value($item,"Quantity"))
 								->add("Price",value($item,"OriginalPrice"))
