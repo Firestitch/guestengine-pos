@@ -57,9 +57,9 @@
 				->open("Location",array("code"=>$store_number,"name"=>value($store,"StoreName"),"date"=>$time_cmodel->db_date()))
 					->open("Invoices");
 
-				$sql = "SELECT CheckID,CheckNo,OpenDate,FirstName,LastName,EmpID FROM Y_CheckHeader
-		  				INNER JOIN K_Employee ON K_Employee.EmpID = Y_CheckHeader.SettledID  
-		  				WHERE StoreNo = ".$store_number." AND TransactionDate = '".$time_cmodel->db()."'";
+				$sql = "SELECT CheckID,CheckNo,OpenDate,J_Employee.FirstName,J_Employee.LastName,J_Employee.EmpID FROM Y_CheckHeader
+		  				INNER JOIN J_Employee ON J_Employee.EmpID = Y_CheckHeader.SettledID AND J_Employee.StoreNo = Y_CheckHeader.StoreNo
+		  				WHERE Y_CheckHeader.StoreNo = ".$store_number." AND TransactionDate = '".$time_cmodel-&gt;db()."'";
 					
 				$invoices = $sqlsrv->select($sql);
 
@@ -102,7 +102,7 @@
 									->add("Name",value($item,"CatName"))
 								->close("Category")
 							->close("Item");
-					}			
+					}
 
 					$xml_writer_util
 						->close("Items")
